@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Analytics Dashboard | Bosch Manufacturing</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #9b59b6;
+            --light: #ecf0f1;
+            --dark: #34495e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            background: var(--primary);
+            color: white;
+            padding: 2rem 1rem;
+            position: fixed;
+            width: 250px;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--secondary);
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            color: var(--light);
+        }
+
+        .logo p {
+            font-size: 0.9rem;
+            color: #bdc3c7;
+        }
+
+        .nav-links {
+            list-style: none;
+        }
+
+        .nav-links li {
+            margin-bottom: 0.5rem;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            padding: 0.8rem 1rem;
+            display: block;
+            border-radius: 5px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .nav-links i {
+            margin-right: 0.5rem;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            grid-column: 2;
+            padding: 2rem;
+            margin-left: 250px;
+        }
+
+        .dashboard-section {
+            display: none;
+        }
+
+        .dashboard-section.active {
+            display: block;
+        }
+
+        .header {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: var(--primary);
+            font-size: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card.primary { border-top: 4px solid var(--primary); }
+        .stat-card.success { border-top: 4px solid var(--success); }
+        .stat-card.danger { border-top: 4px solid var(--danger); }
+        .stat-card.warning { border-top: 4px solid var(--warning); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .chart-container.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            color: var(--primary);
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        /* Data Table */
+        .data-table {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        /* Alert Styles */
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .kpi-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .kpi-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        /* Report Cards */
+        .report-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .report-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .report-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Settings Panel */
+        .settings-panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .setting-group {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .setting-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .setting-control {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--dark);
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--success);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* About Me Section */
+        .about-me-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            margin-right: 2rem;
+        }
+
+        .profile-info h2 {
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .profile-title {
+            color: var(--secondary);
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .linkedin-btn {
+            display: inline-flex;
+            align-items: center;
+            background: #0077b5;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .linkedin-btn:hover {
+            background: #005885;
+            transform: translateY(-2px);
+        }
+
+        .linkedin-btn i {
+            margin-right: 0.5rem;
+        }
+
+        /* Comments Section */
+        .comments-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .comment-form {
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .comment-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .comment-item {
+            padding: 1rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .comment-item:last-child {
+            border-bottom: none;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .comment-author {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .comment-date {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .comment-text {
+            color: #2c3e50;
+            line-height: 1.5;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .profile-avatar {
+                margin-right: 0;
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <h1>🏭 Bosch Analytics</h1>
+                <p>Production Intelligence</p>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#overview" class="nav-link active" data-section="overview">📊 Overview</a></li>
+                <li><a href="#production" class="nav-link" data-section="production">⚙️ Production Metrics</a></li>
+                <li><a href="#quality" class="nav-link" data-section="quality">🎯 Quality Analysis</a></li>
+                <li><a href="#predictive" class="nav-link" data-section="predictive">🔮 Predictive Insights</a></li>
+                <li><a href="#bottlenecks" class="nav-link" data-section="bottlenecks">🚧 Bottleneck Detection</a></li>
+                <li><a href="#reports" class="nav-link" data-section="reports">📈 Reports</a></li>
+                <li><a href="#about" class="nav-link" data-section="about">👤 About Me</a></li>
+                <li><a href="#settings" class="nav-link" data-section="settings">⚙️ Settings</a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Overview Section -->
+            <section id="overview" class="dashboard-section active">
+                <!-- Header -->
+                <div class="header">
+                    <div>
+                        <h1>Production Optimization Dashboard</h1>
+                        <p>Real-time monitoring and predictive analytics for manufacturing efficiency</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p><strong>Last Updated:</strong> <span id="current-time">Loading...</span></p>
+                        <p style="color: var(--success); font-size: 0.9rem;">● System Operational</p>
+                    </div>
+                </div>
+
+                <!-- Alert -->
+                <div class="alert alert-warning">
+                    ⚠️ <strong>Attention:</strong> Station L3_S32 showing 15% higher failure rate than average. Recommended maintenance check.
+                </div>
+
+                <!-- Key Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <div class="stat-label">Total Parts Processed</div>
+                        <div class="stat-value">1,183,747</div>
+                        <div style="color: var(--success);">↑ 2.3% from last week</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-label">Success Rate</div>
+                        <div class="stat-value">99.42%</div>
+                        <div>6,879 defects prevented</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="stat-label">Defect Rate</div>
+                        <div class="stat-value">0.58%</div>
+                        <div style="color: var(--danger);">↓ 0.12% improvement</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-label">Avg Production Time</div>
+                        <div class="stat-value">4.2h</div>
+                        <div>Per part</div>
+                    </div>
+                </div>
+
+                <!-- KPI Grid -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div>Data Volume</div>
+                        <div class="kpi-value">14.3 GB</div>
+                        <div>Raw Dataset</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div>Features</div>
+                        <div class="kpi-value">4,265</div>
+                        <div>Dimensions</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div>Stations</div>
+                        <div class="kpi-value">51</div>
+                        <div>Production Line</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div>Model Accuracy</div>
+                        <div class="kpi-value">94.7%</div>
+                        <div>XGBoost MCC</div>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="charts-grid">
+                    <!-- Defect Distribution -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Defect Distribution by Station</div>
+                        </div>
+                        <canvas id="defectChart" height="250"></canvas>
+                    </div>
+
+                    <!-- Production Trend -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Production Efficiency Trend</div>
+                        </div>
+                        <canvas id="productionChart" height="250"></canvas>
+                    </div>
+
+                    <!-- Feature Importance -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Top Predictive Features</div>
+                        </div>
+                        <canvas id="featureChart" height="300"></canvas>
+                    </div>
+
+                    <!-- Time Analysis -->
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Production Time vs Defect Rate</div>
+                        </div>
+                        <canvas id="timeChart" height="250"></canvas>
+                    </div>
+
+                    <!-- Station Performance -->
+                    <div class="chart-container full-width">
+                        <div class="chart-header">
+                            <div class="chart-title">Station Performance Heatmap</div>
+                        </div>
+                        <div id="heatmap" style="height: 300px;"></div>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3>Recent Production Alerts</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Station ID</th>
+                                <th>Issue Type</th>
+                                <th>Severity</th>
+                                <th>Parts Affected</th>
+                                <th>Time Detected</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>L3_S32</td>
+                                <td>High Failure Rate</td>
+                                <td><span style="color: var(--danger);">High</span></td>
+                                <td>247</td>
+                                <td>2 hours ago</td>
+                                <td><span style="color: var(--warning);">Investigating</span></td>
+                            </tr>
+                            <tr>
+                                <td>L1_S15</td>
+                                <td>Slow Processing</td>
+                                <td><span style="color: var(--warning);">Medium</span></td>
+                                <td>189</td>
+                                <td>4 hours ago</td>
+                                <td><span style="color: var(--success);">Resolved</span></td>
+                            </tr>
+                            <tr>
+                                <td>L2_S24</td>
+                                <td>Sensor Calibration</td>
+                                <td><span style="color: var(--warning);">Medium</span></td>
+                                <td>156</td>
+                                <td>6 hours ago</td>
+                                <td><span style="color: var(--success);">Resolved</span></td>
+                            </tr>
+                            <tr>
+                                <td>L4_S45</td>
+                                <td>Material Variance</td>
+                                <td><span style="color: var(--danger);">High</span></td>
+                                <td>312</td>
+                                <td>8 hours ago</td>
+                                <td><span style="color: var(--warning);">Monitoring</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Production Metrics Section -->
+            <section id="production" class="dashboard-section">
+                <div class="header">
+                    <div>
+                        <h1>Production Metrics & Performance</h1>
+                        <p>Detailed analysis of manufacturing throughput and efficiency</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    📈 <strong>Performance Insight:</strong> Overall production efficiency has improved by 3.2% this month.
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <div class="stat-label">Daily Throughput</div>
+                        <div class="stat-value">8,742</div>
+                        <div>Parts per day</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-label">OEE</div>
+                        <div class="stat-value">87.3%</div>
+                        <div>Overall Equipment Effectiveness</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-label">Cycle Time</div>
+                        <div class="stat-value">4.2min</div>
+                        <div>Average per part</div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-label">Capacity Utilization</div>
+                        <div class="stat-value">92.1%</div>
+                        <div>Production line</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Daily Production Volume</div>
+                        </div>
+                        <canvas id="dailyProductionChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Shift Performance Comparison</div>
+                        </div>
+                        <canvas id="shiftChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Station Utilization Rates</div>
+                        </div>
+                        <canvas id="utilizationChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Downtime Analysis</div>
+                        </div>
+                        <canvas id="downtimeChart" height="250"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quality Analysis Section -->
+            <section id="quality" class="dashboard-section">
+                <div class="header">
+                    <div>
+                        <h1>Quality Control Analysis</h1>
+                        <p>Comprehensive quality metrics and defect pattern analysis</p>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card success">
+                        <div class="stat-label">First Pass Yield</div>
+                        <div class="stat-value">98.7%</div>
+                        <div>Industry Avg: 97.2%</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-label">Rework Rate</div>
+                        <div class="stat-value">1.1%</div>
+                        <div>Target: < 0.8%</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="stat-label">Scrap Rate</div>
+                        <div class="stat-value">0.2%</div>
+                        <div>Within Target</div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-label">PPM</div>
+                        <div class="stat-value">5,800</div>
+                        <div>Parts Per Million defects</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Defect Type Distribution</div>
+                        </div>
+                        <canvas id="defectTypeChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Quality Trend by Station</div>
+                        </div>
+                        <canvas id="qualityTrendChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Six Sigma Analysis</div>
+                        </div>
+                        <canvas id="sigmaChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Cost of Quality</div>
+                        </div>
+                        <canvas id="qualityCostChart" height="250"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Predictive Insights Section -->
+            <section id="predictive" class="dashboard-section">
+                <div class="header">
+                    <div>
+                        <h1>Predictive Analytics & ML Insights</h1>
+                        <p>Machine learning predictions and failure forecasting</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    🔮 <strong>Predictive Model:</strong> XGBoost achieving 94.7% accuracy in defect prediction with 0.92 MCC score
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card primary">
+                        <div class="stat-label">Model Accuracy</div>
+                        <div class="stat-value">94.7%</div>
+                        <div>XGBoost Performance</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-label">Precision</div>
+                        <div class="stat-value">91.2%</div>
+                        <div>Defect Detection</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-label">Recall</div>
+                        <div class="stat-value">89.8%</div>
+                        <div>True Positive Rate</div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-label">F1-Score</div>
+                        <div class="stat-value">90.5%</div>
+                        <div>Balance Measure</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">ROC Curve Analysis</div>
+                        </div>
+                        <canvas id="rocChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Feature Importance Ranking</div>
+                        </div>
+                        <canvas id="featureImportanceChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container full-width">
+                        <div class="chart-header">
+                            <div class="chart-title">Prediction Confidence Distribution</div>
+                        </div>
+                        <canvas id="confidenceChart" height="250"></canvas>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3>Recent Predictions & Actual Outcomes</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Part ID</th>
+                                <th>Predicted Outcome</th>
+                                <th>Confidence</th>
+                                <th>Actual Outcome</th>
+                                <th>Status</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>#789452</td>
+                                <td><span style="color: var(--danger);">Defect</span></td>
+                                <td>92.3%</td>
+                                <td><span style="color: var(--danger);">Defect</span></td>
+                                <td><span style="color: var(--success);">✓ Correct</span></td>
+                                <td>2 hours ago</td>
+                            </tr>
+                            <tr>
+                                <td>#789451</td>
+                                <td><span style="color: var(--success);">Pass</span></td>
+                                <td>87.6%</td>
+                                <td><span style="color: var(--success);">Pass</span></td>
+                                <td><span style="color: var(--success);">✓ Correct</span></td>
+                                <td>3 hours ago</td>
+                            </tr>
+                            <tr>
+                                <td>#789450</td>
+                                <td><span style="color: var(--success);">Pass</span></td>
+                                <td>76.2%</td>
+                                <td><span style="color: var(--danger);">Defect</span></td>
+                                <td><span style="color: var(--danger);">✗ False Negative</span></td>
+                                <td>4 hours ago</td>
+                            </tr>
+                            <tr>
+                                <td>#789449</td>
+                                <td><span style="color: var(--danger);">Defect</span></td>
+                                <td>81.9%</td>
+                                <td><span style="color: var(--success);">Pass</span></td>
+                                <td><span style="color: var(--warning);">✗ False Positive</span></td>
+                                <td>5 hours ago</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Bottleneck Detection Section -->
+            <section id="bottlenecks" class="dashboard-section">
+                <div class="header">
+                    <div>
+                        <h1>Bottleneck Detection & Resolution</h1>
+                        <p>Identify and resolve production constraints in real-time</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    🚧 <strong>Bottleneck Detected:</strong> Station L3_S32 is causing 23% production delay with average wait time of 8.7 minutes
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card danger">
+                        <div class="stat-label">Current Bottleneck</div>
+                        <div class="stat-value">L3_S32</div>
+                        <div>Primary constraint</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-label">Avg Wait Time</div>
+                        <div class="stat-value">8.7min</div>
+                        <div>At bottleneck station</div>
+                    </div>
+                    <div class="stat-card info">
+                        <div class="stat-label">Queue Length</div>
+                        <div class="stat-value">47</div>
+                        <div>Parts waiting</div>
+                    </div>
+                    <div class="stat-card primary">
+                        <div class="stat-label">Impact on Output</div>
+                        <div class="stat-value">-23%</div>
+                        <div>Production loss</div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Station Wait Times</div>
+                        </div>
+                        <canvas id="waitTimeChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-header">
+                            <div class="chart-title">Queue Length Monitoring</div>
+                        </div>
+                        <canvas id="queueChart" height="250"></canvas>
+                    </div>
+                    <div class="chart-container full-width">
+                        <div class="chart-header">
+                            <div class="chart-title">Bottleneck Impact Analysis</div>
+                        </div>
+                        <canvas id="bottleneckImpactChart" height="250"></canvas>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3>Recommended Actions for Bottleneck Resolution</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Priority</th>
+                                <th>Action Item</th>
+                                <th>Expected Impact</th>
+                                <th>Effort Required</th>
+                                <th>Timeline</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span style="color: var(--danger);">High</span></td>
+                                <td>Increase staffing at Station L3_S32</td>
+                                <td>15% throughput improvement</td>
+                                <td>Low</td>
+                                <td>Immediate</td>
+                                <td><span style="color: var(--warning);">Pending</span></td>
+                            </tr>
+                            <tr>
+                                <td><span style="color: var(--warning);">Medium</span></td>
+                                <td>Optimize material flow to L3_S32</td>
+                                <td>8% cycle time reduction</td>
+                                <td>Medium</td>
+                                <td>1 week</td>
+                                <td><span style="color: var(--success);">In Progress</span></td>
+                            </tr>
+                            <tr>
+                                <td><span style="color: var(--warning);">Medium</span></td>
+                                <td>Preventive maintenance for equipment</td>
+                                <td>5% downtime reduction</td>
+                                <td>Medium</td>
+                                <td>2 weeks</td>
+                                <td><span style="color: var(--warning);">Scheduled</span></td>
+                            </tr>
+                            <tr>
+                                <td><span style="color: var(--success);">Low</span></td>
+                                <td>Cross-training for operators</td>
+                                <td>3% flexibility improvement</td>
+                                <td>High</td>
+                                <td>1 month</td>
+                                <td><span style="color: var(--warning);">Planned</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Reports & Analytics Section -->
+            <section id="reports" class="dashboard-section">
+                <div class="header">
+                    <div>
+                        <h1>Reports & Analytics</h1>
+                        <p>Comprehensive reporting, data export, and business intelligence</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-success">
+                    📊 <strong>Report Ready:</strong> Monthly Performance Report for October 2024 is now available for download.
+                </div>
+
+                <div class="report-cards">
+                    <div class="report-card" onclick="generateReport('daily')">
+                        <div class="report-icon">📈</div>
+                        <h3>Daily Production Report</h3>
+                        <p>Complete overview of daily manufacturing performance, throughput, and quality metrics</p>
+                        <div style="margin-top: 1rem;">
+                            <span class="btn btn-primary">Generate Report</span>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="generateReport('weekly')">
+                        <div class="report-icon">📊</div>
+                        <h3>Weekly Performance Analysis</h3>
+                        <p>Trend analysis, week-over-week comparisons, and performance insights</p>
+                        <div style="margin-top: 1rem;">
+                            <span class="btn btn-primary">Generate Report</span>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="generateReport('monthly')">
+                        <div class="report-icon">📋</div>
+                        <h3>Monthly Executive Summary</h3>
+                        <p>Executive-level insights, KPI performance, and strategic recommendations</p>
+                        <div style="margin-top: 1rem;">
+                            <span class="btn btn-primary">Generate Report</span>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="generateReport('quality')">
+                        <div class="report-icon">🎯</div>
+                        <h3>Quality Assurance Report</h3>
+                        <p>Detailed quality metrics, defect analysis, and compliance reporting</p>
+                        <div style="margin-top: 1rem;">
+                            <span class="btn btn-primary">Generate Report</span>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="generateReport('predictive')">
+                        <div class="report-icon">🔮</div>
+                        <h3>Predictive Analytics Report</h3>
+                        <p>ML model performance, prediction accuracy, and future trend forecasts</p>
+                        <div style="margin-top: 1rem;">
+                            <span class="btn btn-primary">Generate Report</span>
+                        </div>
+                    </div>
+
+                    <div class="report-card" onclick="generateReport('custom')">
+                        <div class="report-icon">⚙️</div>
+                        <h3>Custom Report Builder</h3>
+                        <p>Create customized reports with specific metrics, date ranges, and formats</p>
+                        <div style="margin-top: 1rem;">
+                            <span class="btn btn-primary">Configure Report</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container full-width">
+                        <div class="chart-header">
+                            <div class="chart-title">Report Generation History</div>
+                        </div>
+                        <canvas id="reportHistoryChart" height="200"></canvas>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h3>Recently Generated Reports</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Report Name</th>
+                                <th>Type</th>
+                                <th>Date Range</th>
+                                <th>Generated By</th>
+                                <th>Size</th>
+                                <th>Download</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>October_Production_Summary.pdf</td>
+                                <td>Monthly Report</td>
+                                <td>Oct 1-31, 2024</td>
+                                <td>Abdurrauf Afridi</td>
+                                <td>4.2 MB</td>
+                                <td><span class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.9rem;">Download</span></td>
+                            </tr>
+                            <tr>
+                                <td>Quality_Metrics_Weekly.pdf</td>
+                                <td>Weekly Report</td>
+                                <td>Oct 21-27, 2024</td>
+                                <td>System Auto</td>
+                                <td>2.1 MB</td>
+                                <td><span class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.9rem;">Download</span></td>
+                            </tr>
+                            <tr>
+                                <td>Bottleneck_Analysis.pdf</td>
+                                <td>Ad-hoc Analysis</td>
+                                <td>Oct 15-25, 2024</td>
+                                <td>Abdurrauf Afridi</td>
+                                <td>3.7 MB</td>
+                                <td><span class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.9rem;">Download</span></td>
+                            </tr>
+                            <tr>
+                                <td>Predictive_Model_Performance.pdf</td>
+                                <td>ML Report</td>
+                                <td>Q3 2024</td>
+                                <td>System Auto</td>
+                                <td>5.8 MB</td>
+                                <td><span class="btn btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.9rem;">Download</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- About Me Section -->
+            <section id="about" class="dashboard-section">
+                <div class="header">
+                    <div>
+                        <h1>About Me</h1>
+                        <p>Get to know the creator behind this Manufacturing Analytics Dashboard</p>
+                    </div>
+                </div>
+
+                <div class="about-me-container">
+                    <div class="profile-header">
+                        <div class="profile-avatar">
+                            👨‍💻
+                        </div>
+                        <div class="profile-info">
+                            <h2>Abdurrauf Afridi</h2>
+                            <div class="profile-title">Data Science Undergraduate</div>
+                            <p>Passionate about leveraging data science and machine learning to solve complex manufacturing challenges. 
+                               This dashboard represents my capstone project in Big Data Analytics, focusing on production optimization 
+                               using real-world manufacturing data from Bosch.</p>
+                            <a href="https://linkedin.com/in/abdurrauf-afridi-b1076a255" class="linkedin-btn" target="_blank">
+                                <i>🔗</i> Connect on LinkedIn
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card primary">
+                            <div class="stat-label">Education</div>
+                            <div class="stat-value">BSc Data Science</div>
+                            <div>IM|Sciences</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-label">Skills</div>
+                            <div class="stat-value">Python, ML, SQL</div>
+                            <div>Data Analytics</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-label">Projects</div>
+                            <div class="stat-value">15+</div>
+                            <div>Completed</div>
+                        </div>
+                        <div class="stat-card info">
+                            <div class="stat-label">Experience</div>
+                            <div class="stat-value">2 Years</div>
+                            <div>Data Science</div>
+                        </div>
+                    </div>
+
+                    <div class="charts-grid">
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <div class="chart-title">Technical Skills Distribution</div>
+                            </div>
+                            <canvas id="skillsChart" height="250"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <div class="chart-title">Project Timeline</div>
+                            </div>
+                            <canvas id="timelineChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="comments-section">
+                    <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Project Feedback & Comments</h3>
+                    
+                    <div class="comment-form">
+                        <div class="form-group">
+                            <input type="text" class="form-control" id="commentName" placeholder="Your Name">
+                        </div>
+                        <div class="form-group">
+                            <textarea class="form-control" id="commentText" placeholder="Share your thoughts about this project..."></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="addComment()">Post Comment</button>
+                    </div>
+
+                    <div class="comment-list" id="commentList">
+                        <!-- Comments will be dynamically added here -->
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <span class="comment-author">Dr. Shayan Ali</span>
+                                <span class="comment-date">November 20, 2024</span>
+                            </div>
+                            <div class="comment-text">
+                                Excellent work on the production optimization dashboard! The integration of XGBoost for predictive maintenance 
+                                and the comprehensive visualization of manufacturing metrics demonstrates strong technical skills and business acumen.
+                            </div>
+                        </div>
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <span class="comment-author">Industry Expert</span>
+                                <span class="comment-date">November 18, 2024</span>
+                            </div>
+                            <div class="comment-text">
+                                Impressive implementation of big data technologies. The bottleneck detection system could save millions in 
+                                manufacturing efficiency. Well documented and professionally presented.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings" class="dashboard-section">
+                <div class="header">
+                    <div>
+                        <h1>System Settings & Configuration</h1>
+                        <p>Customize dashboard preferences, alerts, and system behavior</p>
+                    </div>
+                </div>
+
+                <div class="settings-panel">
+                    <div class="setting-group">
+                        <h3>User Preferences</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">
+                            <div>
+                                <div class="setting-label">Dashboard Theme</div>
+                                <select class="setting-control">
+                                    <option>Light Theme</option>
+                                    <option selected>Dark Theme</option>
+                                    <option>Auto (System)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Data Refresh Rate</div>
+                                <select class="setting-control">
+                                    <option>Real-time (5 seconds)</option>
+                                    <option selected>Near real-time (30 seconds)</option>
+                                    <option>1 minute</option>
+                                    <option>5 minutes</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Default Date Range</div>
+                                <select class="setting-control">
+                                    <option>Today</option>
+                                    <option>Last 7 days</option>
+                                    <option selected>Last 30 days</option>
+                                    <option>Last quarter</option>
+                                    <option>Custom range</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Temperature Unit</div>
+                                <select class="setting-control">
+                                    <option selected>Celsius (°C)</option>
+                                    <option>Fahrenheit (°F)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3>Alert Configuration</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">
+                            <div>
+                                <div class="setting-label">Defect Rate Threshold</div>
+                                <input type="number" class="setting-control" value="0.8" step="0.1" min="0" max="10">
+                                <small>Alert when defect rate exceeds this percentage</small>
+                            </div>
+                            <div>
+                                <div class="setting-label">Downtime Alert Threshold</div>
+                                <input type="number" class="setting-control" value="15" step="1" min="0" max="60">
+                                <small>Alert when station downtime exceeds (minutes)</small>
+                            </div>
+                            <div>
+                                <div class="setting-label">Queue Length Warning</div>
+                                <input type="number" class="setting-control" value="25" step="1" min="0" max="100">
+                                <small>Warning when queue length exceeds</small>
+                            </div>
+                            <div>
+                                <div class="setting-label">Email Notifications</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                                <small>Receive email alerts for critical issues</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3>Data Source Configuration</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">
+                            <div>
+                                <div class="setting-label">Primary Data Source</div>
+                                <select class="setting-control">
+                                    <option selected>Apache Spark Cluster</option>
+                                    <option>MySQL Database</option>
+                                    <option>AWS S3</option>
+                                    <option>HDFS</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Backup Data Source</div>
+                                <select class="setting-control">
+                                    <option>Apache Spark Cluster</option>
+                                    <option selected>MySQL Database</option>
+                                    <option>AWS S3</option>
+                                    <option>HDFS</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Data Retention Period</div>
+                                <select class="setting-control">
+                                    <option>1 month</option>
+                                    <option>3 months</option>
+                                    <option selected>6 months</option>
+                                    <option>1 year</option>
+                                    <option>Indefinite</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Auto Backup</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                                <small>Automatically backup data daily</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h3>Model Configuration</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1rem;">
+                            <div>
+                                <div class="setting-label">Prediction Model</div>
+                                <select class="setting-control">
+                                    <option selected>XGBoost (Current)</option>
+                                    <option>Random Forest</option>
+                                    <option>Neural Network</option>
+                                    <option>Logistic Regression</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Model Retraining</div>
+                                <select class="setting-control">
+                                    <option>Daily</option>
+                                    <option selected>Weekly</option>
+                                    <option>Monthly</option>
+                                    <option>Manual</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Confidence Threshold</div>
+                                <input type="number" class="setting-control" value="80" step="1" min="50" max="99">
+                                <small>Minimum confidence for predictions (%)</small>
+                            </div>
+                            <div>
+                                <div class="setting-label">A/B Testing</div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                                <small>Compare multiple models</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <button class="btn btn-primary" style="margin-right: 1rem;">Save Settings</button>
+                        <button class="btn" style="background: #95a5a6; color: white;">Reset to Defaults</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Navigation functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('.dashboard-section');
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Remove active class from all links and sections
+                    navLinks.forEach(nav => nav.classList.remove('active'));
+                    sections.forEach(section => section.classList.remove('active'));
+                    
+                    // Add active class to clicked link and corresponding section
+                    this.classList.add('active');
+                    const sectionId = this.getAttribute('data-section');
+                    document.getElementById(sectionId).classList.add('active');
+                });
+            });
+
+            // Load comments from localStorage
+            loadComments();
+            
+            // Initialize all charts
+            initializeAllCharts();
+        });
+
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // Report generation function
+        function generateReport(type) {
+            alert(`Generating ${type} report... This may take a few moments.`);
+        }
+
+        // Comments functionality
+        function loadComments() {
+            const comments = JSON.parse(localStorage.getItem('projectComments')) || [];
+            const commentList = document.getElementById('commentList');
+            
+            // Clear existing comments except the default ones
+            const defaultComments = commentList.querySelectorAll('.comment-item');
+            if (comments.length > 0) {
+                commentList.innerHTML = '';
+                comments.forEach(comment => {
+                    addCommentToDOM(comment.name, comment.text, comment.date);
+                });
+                // Add back default comments
+                defaultComments.forEach(comment => {
+                    commentList.appendChild(comment);
+                });
+            }
+        }
+
+        function addComment() {
+            const nameInput = document.getElementById('commentName');
+            const textInput = document.getElementById('commentText');
+            
+            const name = nameInput.value.trim();
+            const text = textInput.value.trim();
+            
+            if (!name || !text) {
+                alert('Please enter both your name and comment.');
+                return;
+            }
+            
+            const comment = {
+                name: name,
+                text: text,
+                date: new Date().toLocaleDateString()
+            };
+            
+            // Save to localStorage
+            const comments = JSON.parse(localStorage.getItem('projectComments')) || [];
+            comments.push(comment);
+            localStorage.setItem('projectComments', JSON.stringify(comments));
+            
+            // Add to DOM
+            addCommentToDOM(name, text, comment.date);
+            
+            // Clear inputs
+            nameInput.value = '';
+            textInput.value = '';
+        }
+
+        function addCommentToDOM(name, text, date) {
+            const commentList = document.getElementById('commentList');
+            const commentItem = document.createElement('div');
+            commentItem.className = 'comment-item';
+            commentItem.innerHTML = `
+                <div class="comment-header">
+                    <span class="comment-author">${name}</span>
+                    <span class="comment-date">${date}</span>
+                </div>
+                <div class="comment-text">${text}</div>
+            `;
+            commentList.insertBefore(commentItem, commentList.firstChild);
+        }
+
+        // Initialize all charts
+        function initializeAllCharts() {
+            // Defect Distribution Chart
+            const defectCtx = document.getElementById('defectChart').getContext('2d');
+            new Chart(defectCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['L3_S32', 'L1_S15', 'L2_S24', 'L4_S45', 'L5_S12', 'L6_S08'],
+                    datasets: [{
+                        label: 'Defect Count',
+                        data: [247, 189, 156, 312, 98, 134],
+                        backgroundColor: [
+                            '#e74c3c', '#f39c12', '#f1c40f', '#e74c3c', '#2ecc71', '#3498db'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Defects'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Production Trend Chart
+            const productionCtx = document.getElementById('productionChart').getContext('2d');
+            new Chart(productionCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                    datasets: [{
+                        label: 'Success Rate %',
+                        data: [99.1, 99.2, 99.3, 99.35, 99.4, 99.42, 99.45],
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Defect Rate %',
+                        data: [0.9, 0.8, 0.7, 0.65, 0.6, 0.58, 0.55],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Rate (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Feature Importance Chart
+            const featureCtx = document.getElementById('featureChart').getContext('2d');
+            new Chart(featureCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Station Time', 'Sensor L3_S32', 'Material Type', 'Temp Variance', 'Pressure Read', 'Other Features'],
+                    datasets: [{
+                        data: [25, 18, 15, 12, 10, 20],
+                        backgroundColor: [
+                            '#2c3e50', '#3498db', '#27ae60', '#e74c3c', '#f39c12', '#9b59b6'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+
+            // Time Analysis Chart
+            const timeCtx = document.getElementById('timeChart').getContext('2d');
+            new Chart(timeCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Normal Parts',
+                        data: [
+                            {x: 2.1, y: 0.1}, {x: 3.2, y: 0.2}, {x: 4.0, y: 0.3},
+                            {x: 2.5, y: 0.15}, {x: 3.8, y: 0.25}, {x: 4.2, y: 0.4}
+                        ],
+                        backgroundColor: '#3498db',
+                        pointRadius: 6
+                    }, {
+                        label: 'Defective Parts',
+                        data: [
+                            {x: 6.8, y: 0.9}, {x: 7.2, y: 0.95}, {x: 5.9, y: 0.85},
+                            {x: 8.1, y: 0.98}, {x: 6.5, y: 0.92}, {x: 7.8, y: 0.96}
+                        ],
+                        backgroundColor: '#e74c3c',
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Production Time (Hours)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Defect Probability'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Daily Production Chart
+            const dailyCtx = document.getElementById('dailyProductionChart').getContext('2d');
+            new Chart(dailyCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Parts Produced',
+                        data: [8450, 8720, 9010, 8340, 8890, 7650, 6210],
+                        backgroundColor: '#3498db'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Parts'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Shift Performance Chart
+            const shiftCtx = document.getElementById('shiftChart').getContext('2d');
+            new Chart(shiftCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Morning', 'Afternoon', 'Night'],
+                    datasets: [{
+                        label: 'Efficiency %',
+                        data: [94.2, 91.8, 89.5],
+                        backgroundColor: ['#3498db', '#2ecc71', '#9b59b6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Efficiency (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Utilization Chart
+            const utilizationCtx = document.getElementById('utilizationChart').getContext('2d');
+            new Chart(utilizationCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Active', 'Idle', 'Maintenance', 'Breakdown'],
+                    datasets: [{
+                        data: [72, 15, 8, 5],
+                        backgroundColor: ['#27ae60', '#f39c12', '#3498db', '#e74c3c']
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+
+            // Downtime Chart
+            const downtimeCtx = document.getElementById('downtimeChart').getContext('2d');
+            new Chart(downtimeCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [{
+                        label: 'Downtime (hours)',
+                        data: [12, 8, 6, 4],
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Hours'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Defect Type Chart
+            const defectTypeCtx = document.getElementById('defectTypeChart').getContext('2d');
+            new Chart(defectTypeCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Dimensional', 'Surface Finish', 'Material Flaw', 'Assembly Error', 'Electrical'],
+                    datasets: [{
+                        data: [35, 25, 15, 18, 7],
+                        backgroundColor: [
+                            '#e74c3c', '#f39c12', '#3498db', '#9b59b6', '#1abc9c'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+
+            // Quality Trend Chart
+            const qualityTrendCtx = document.getElementById('qualityTrendChart').getContext('2d');
+            new Chart(qualityTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Station 1', 'Station 2', 'Station 3', 'Station 4', 'Station 5'],
+                    datasets: [{
+                        label: 'Quality Score',
+                        data: [98.5, 96.8, 97.2, 95.4, 99.1],
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Quality Score (%)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Six Sigma Chart
+            const sigmaCtx = document.getElementById('sigmaChart').getContext('2d');
+            new Chart(sigmaCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Sigma 1', 'Sigma 2', 'Sigma 3', 'Sigma 4', 'Sigma 5', 'Sigma 6'],
+                    datasets: [{
+                        label: 'Defects per Million',
+                        data: [691462, 308538, 66807, 6210, 233, 3.4],
+                        backgroundColor: '#3498db'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            type: 'logarithmic',
+                            title: {
+                                display: true,
+                                text: 'Defects per Million (log scale)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Quality Cost Chart
+            const qualityCostCtx = document.getElementById('qualityCostChart').getContext('2d');
+            new Chart(qualityCostCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Prevention', 'Appraisal', 'Internal Failure', 'External Failure'],
+                    datasets: [{
+                        label: 'Cost ($)',
+                        data: [15000, 25000, 45000, 80000],
+                        backgroundColor: ['#27ae60', '#3498db', '#f39c12', '#e74c3c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cost ($)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // ROC Curve Chart
+            const rocCtx = document.getElementById('rocChart').getContext('2d');
+            new Chart(rocCtx, {
+                type: 'line',
+                data: {
+                    labels: ['0', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '1.0'],
+                    datasets: [{
+                        label: 'XGBoost Model',
+                        data: [0, 0.2, 0.4, 0.55, 0.68, 0.78, 0.85, 0.90, 0.94, 0.97, 1.0],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Random Guess',
+                        data: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+                        borderColor: '#95a5a6',
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'False Positive Rate'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'True Positive Rate'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Feature Importance Chart
+            const featureImportanceCtx = document.getElementById('featureImportanceChart').getContext('2d');
+            new Chart(featureImportanceCtx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: ['Station Time', 'Temp Sensor 32', 'Pressure Read', 'Material Type', 'Vibration'],
+                    datasets: [{
+                        label: 'Importance Score',
+                        data: [0.25, 0.18, 0.15, 0.12, 0.10],
+                        backgroundColor: '#3498db'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Importance Score'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Confidence Chart
+            const confidenceCtx = document.getElementById('confidenceChart').getContext('2d');
+            new Chart(confidenceCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%'],
+                    datasets: [{
+                        label: 'Number of Predictions',
+                        data: [150, 450, 1200, 3500, 2800],
+                        backgroundColor: '#27ae60'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Predictions'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Wait Time Chart
+            const waitTimeCtx = document.getElementById('waitTimeChart').getContext('2d');
+            new Chart(waitTimeCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['L1_S15', 'L2_S24', 'L3_S32', 'L4_S45', 'L5_S12'],
+                    datasets: [{
+                        label: 'Average Wait Time (min)',
+                        data: [2.1, 3.5, 8.7, 4.2, 1.8],
+                        backgroundColor: '#e74c3c'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Wait Time (minutes)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Queue Chart
+            const queueCtx = document.getElementById('queueChart').getContext('2d');
+            new Chart(queueCtx, {
+                type: 'line',
+                data: {
+                    labels: ['8:00', '10:00', '12:00', '14:00', '16:00', '18:00'],
+                    datasets: [{
+                        label: 'Queue Length',
+                        data: [15, 28, 47, 32, 19, 12],
+                        borderColor: '#f39c12',
+                        backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Queue Length'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Bottleneck Impact Chart
+            const bottleneckImpactCtx = document.getElementById('bottleneckImpactChart').getContext('2d');
+            new Chart(bottleneckImpactCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                    datasets: [{
+                        label: 'Actual Output',
+                        data: [82000, 84500, 79000, 86000, 88000, 85000, 87000],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Potential Output',
+                        data: [85000, 87500, 90000, 92000, 94000, 96000, 98000],
+                        borderColor: '#27ae60',
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Monthly Output'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Report History Chart
+            const reportHistoryCtx = document.getElementById('reportHistoryChart').getContext('2d');
+            new Chart(reportHistoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                    datasets: [{
+                        label: 'Reports Generated',
+                        data: [45, 52, 38, 61, 49, 57, 68],
+                        backgroundColor: '#9b59b6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Reports'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Skills Chart for About Me section
+            const skillsCtx = document.getElementById('skillsChart').getContext('2d');
+            new Chart(skillsCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['Python', 'Machine Learning', 'Data Analysis', 'SQL', 'Big Data', 'Visualization'],
+                    datasets: [{
+                        label: 'Skill Level',
+                        data: [90, 85, 88, 82, 80, 85],
+                        backgroundColor: 'rgba(52, 152, 219, 0.2)',
+                        borderColor: '#3498db',
+                        pointBackgroundColor: '#3498db',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#3498db'
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+
+            // Timeline Chart for About Me section
+            const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+            new Chart(timelineCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan 2023', 'Jun 2023', 'Dec 2023', 'Mar 2024', 'Sep 2024', 'Nov 2024'],
+                    datasets: [{
+                        label: 'Projects Completed',
+                        data: [2, 5, 8, 11, 13, 15],
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cumulative Projects'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Initialize Heatmap
+            const heatmapOptions = {
+                series: [{
+                    name: 'Station Efficiency',
+                    data: [
+                        {x: 'L1_S01', y: 95}, {x: 'L1_S15', y: 88}, {x: 'L2_S24', y: 92},
+                        {x: 'L3_S32', y: 75}, {x: 'L4_S45', y: 82}, {x: 'L5_S12', y: 96},
+                        {x: 'L6_S08', y: 90}, {x: 'L7_S51', y: 94}
+                    ]
+                }],
+                chart: {
+                    height: 350,
+                    type: 'heatmap',
+                },
+                plotOptions: {
+                    heatmap: {
+                        shadeIntensity: 0.5,
+                        colorScale: {
+                            ranges: [
+                                {from: 70, to: 79, color: '#e74c3c', name: 'Low'},
+                                {from: 80, to: 89, color: '#f39c12', name: 'Medium'},
+                                {from: 90, to: 100, color: '#27ae60', name: 'High'}
+                            ]
+                        }
+                    }
+                },
+                dataLabels: {
+                    enabled: true
+                },
+                title: {
+                    text: 'Station Performance Index'
+                }
+            };
+
+            const heatmap = new ApexCharts(document.querySelector("#heatmap"), heatmapOptions);
+            heatmap.render();
+        }
+    </script>
+</body>
+</html>
